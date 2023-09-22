@@ -36,7 +36,7 @@
 
 <body>
   <canvas id="canvas"></canvas>
-  <button onclick="gameManager.downBalls()">Down Ball</button>
+  <button onclick="gameManager.downBalls()">공 내리기</button>
 
   <script>
     function randomInt(...args) {
@@ -48,7 +48,7 @@
       if (args.length === 2) {
         const [start, end] = args;
 
-        if (start > end) throw Error("Initial value is bigger then final");
+        if (start > end) throw Error("시작값이 끝값보다 큼");
 
         return Math.ceil(Math.random() * (end - start)) + start;
       }
@@ -63,7 +63,7 @@
       if (args.length === 2) {
         const [start, end] = args;
 
-        if (start > end) throw Error("Initial value is bigger then final");
+        if (start > end) throw Error("시작값이 끝값보다 큼");
 
         return Math.random() * (end - start) + start;
       }
@@ -290,14 +290,15 @@
 
       shoot(mousePos) {
         this.showDirection = false;
-        const force = this.calcBallVelocity(this.angle(mousePos));
+        const constantSpeed = 25
+        const force = this.calcBallVelocity(this.angle(mousePos), constantSpeed);
         this.applyForce(force);
       }
 
-      calcBallVelocity(angle) {
+      calcBallVelocity(angle, constantSpeed) {
         return new Vector(
-          100 * Math.cos(angle) * POWER,
-          100 * Math.sin(angle) * POWER
+          constantSpeed * Math.cos(angle),
+          constantSpeed * Math.sin(angle)
         );
       }
 
@@ -395,10 +396,10 @@
         this.n = n;
         this.start = n;
 
-        this.x = x * 120;
-        this.y = y * 80 + uiOffsetY;
-        this.w = 110;
-        this.h = 70;
+        this.x = x * 80;
+        this.y = y * 60 + uiOffsetY;
+        this.w = 70;
+        this.h = 50;
       }
 
       shouldMoveDown(state) {
@@ -418,17 +419,110 @@
         const percentage = ((level - this.n) / level) * 30;
         return `hsl(${percentage}, ${100 - percentage}%, 63%)`;
       }
+      colorGradient(state) {
+        const gradient = ctx.createRadialGradient(
+          this.x + this.w / 2,
+          this.y + this.h / 2,
+          0,
+          this.x + this.w / 2,
+          this.y + this.h / 2,
+          this.w / 2
+        );
+
+        // Change this line to set the background color to dark green
+        gradient.addColorStop(0, 'rgba(0, 100, 100, 0.7)');
+        return gradient;
+      }
+      drawGoldenGlow(ctx, x, y, w, h) {
+        const centerX = x + w / 2;
+        const centerY = y + h / 2;
+
+        // Create a radial gradient for the glow
+        const gradient = ctx.createRadialGradient(
+          centerX, centerY, 0,
+          centerX, centerY, w / 2
+        );
+
+        // Add color stops to simulate the glow
+        // gradient.addColorStop(0, 'rgba(255, 223, 0, 0.4)');
+        // gradient.addColorStop(1, 'rgba(255, 223, 0, 0)');
+
+        // Set the gradient as the fill style
+        ctx.fillStyle = gradient;
+
+        // Fill the rectangle with the gradient
+        ctx.fillRect(x, y, w, h);
+      }
+
+      drawGlowBorder(ctx, x, y, w, h, borderWidth, borderColor, glowColor, glowBlur) {
+        // Save the current canvas state
+        ctx.save();
+
+        // Draw the rectangular shape (without a border)
+        ctx.fillStyle = glowColor;
+        ctx.fillRect(x, y, w, h);
+
+        // Set the shadow properties for the glow effect
+        ctx.shadowBlur = glowBlur;
+        ctx.shadowColor = borderColor;
+
+        // Draw the border (with a glow effect)
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = borderWidth;
+        ctx.strokeRect(x, y, w, h);
+
+        // Restore the canvas state to remove the shadow from other elements
+        ctx.restore();
+      }
+
 
       display(state) {
-        fillRect(this.x, this.y, this.w, this.h, this.color(state.level));
-        ctx.fillStyle = "black";
+        const centerX = this.x + this.w / 2;
+        const centerY = this.y + this.h / 2;
+        const spaceInside = 8;
+        const innerWidth = this.w - 2 * spaceInside;
+        const innerHeight = this.h - 2 * spaceInside;
+
+        const innerX = centerX - innerWidth / 2;
+        const innerY = centerY - innerHeight / 2;
+
+        // Set the shadow properties to create the glow effect
+        ctx.shadowBlur = 10; // Adjust the blur radius for the glow
+        ctx.shadowColor = this.colorGradient(state.level); // Use the gradient for the glow color
+
+        // Fill the inner rectangle with the gradient and the glow effect
+        ctx.fillStyle = this.colorGradient(state.level);
+        ctx.fillRect(innerX, innerY, innerWidth, innerHeight);
+
+        // Call the function to add the golden glow effect to the border
+        this.drawGoldenGlow(ctx, this.x, this.y, this.w, this.h);
+
+        // Draw the top border with shadow (box shadow)
+        const shadowOffset = 5; // Adjust the shadow offset as needed
+        ctx.fillStyle = "cyan"; // Shadow color and opacity
+        ctx.fillRect(this.x, this.y - shadowOffset, this.w, shadowOffset);
+
+        // Draw the bottom border with shadow (box shadow)
+        ctx.fillRect(this.x, this.y + this.h, this.w, shadowOffset);
+
+        // Reset shadow properties for the inner rectangle
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = "cyan";
+
+        // Draw the left and right borders
+        ctx.strokeStyle = "rgba(0, 100, 100, 0.5)";
+        ctx.lineWidth = 4; // Increase the border width if needed
+        ctx.strokeRect(this.x, this.y, this.w, this.h);
+
+        // Add text inside the rectangle
+        ctx.fillStyle = "#fff";
+        ctx.lineWidth = 3;
         ctx.font = "20px Arial";
-        ctx.fillText(
-          this.n,
-          this.x + this.w / 2 - 8,
-          this.y + this.h / 2 + 5
-        );
+        ctx.fillText(this.n, this.x + this.w / 2 - 8, this.y + this.h / 2 + 5);
       }
+
+
+
 
       hit() {
         this.n--;
@@ -596,9 +690,9 @@
       }
 
       showScore(state) {
-        ctx.fillText(`Score: ${state.level}`, 30, uiOffsetY / 2 + 7);
+        ctx.fillText(`현재 점수: ${state.level}`, 30, uiOffsetY / 2 + 7);
         ctx.fillText(
-          `Max Score: ${state.bestLevel}`,
+          `최고 점수: ${state.bestLevel}`,
           width - 150,
           uiOffsetY / 2 + 7
         );
@@ -616,7 +710,7 @@
       gameOver() {
         fillRect(0, height / 2 - 100, width, 200, "rgba(0, 0, 0, 0.3)");
         ctx.font = "40px Arial";
-        ctx.fillText("You Lose!", width / 2 - 40, height / 2 + 12);
+        ctx.fillText("패배!", width / 2 - 40, height / 2 + 12);
         ctx.font = "20px Arial";
       }
     }
@@ -812,10 +906,12 @@
 
       addBallsAndBricks() {
         const bonusBallCount = this.bonusBalls.hitBallCount;
-        const newBrickIndeces = shuffle(range(6)).slice(
+        const newBrickIndeces = shuffle(range(9)).slice(
           0,
           Math.random() > 0.9 ? randomInt(5) : randomInt(4)
         );
+
+
         const newBonusBallIndex = shuffle(
           range(6).filter((i) => !newBrickIndeces.includes(i))
         )[0];
@@ -923,16 +1019,19 @@
       };
     }
 
-    canvas.addEventListener("touchmove", (e) => {
+    function touchMove(e) {
       e.preventDefault(); // Prevent default touch event behavior
       const scale = ctx.scale;
       const offset = ctx.offset;
       const pos = eventPos(e);
-      const mx = pos.x - canvas.offsetLeft;
+      const mx = pos.x;
       const my = pos.y;
 
       Mouse.position = new Vector(mx, my);
-    });
+    }
+
+    canvas.addEventListener("touchstart", touchMove);
+    canvas.addEventListener("touchmove", touchMove);
 
 
     const gameManager = new GameManager();
